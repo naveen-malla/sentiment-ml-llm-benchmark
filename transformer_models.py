@@ -13,6 +13,9 @@ from transformers import (
 
 from preprocessing import DatasetSplits
 
+DEFAULT_MAX_TRAIN = 3000
+DEFAULT_MAX_EVAL = 2000
+
 
 def _tokenize_function(examples, tokenizer):
     return tokenizer(examples["text"], padding="max_length", truncation=True)
@@ -42,11 +45,15 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     val_dataset = Dataset.from_dict({"text": list(dataset.X_val), "label": list(dataset.y_val)})
     test_dataset = Dataset.from_dict({"text": list(dataset.X_test), "label": list(dataset.y_test)})
 
-    max_train_samples = _get_env_int("MAX_TRAIN_SAMPLES")
-    max_eval_samples = _get_env_int("MAX_EVAL_SAMPLES")
+    max_train_samples = _get_env_int("MAX_TRAIN_SAMPLES") or DEFAULT_MAX_TRAIN
+    max_eval_samples = _get_env_int("MAX_EVAL_SAMPLES") or DEFAULT_MAX_EVAL
     train_dataset = _maybe_subsample(train_dataset, max_train_samples)
     val_dataset = _maybe_subsample(val_dataset, max_eval_samples)
     test_dataset = _maybe_subsample(test_dataset, max_eval_samples)
+
+    print(
+        f"Using {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test samples"
+    )
 
     tokenized_train = train_dataset.map(lambda x: _tokenize_function(x, tokenizer), batched=True)
     tokenized_val = val_dataset.map(lambda x: _tokenize_function(x, tokenizer), batched=True)
