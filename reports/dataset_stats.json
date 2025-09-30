@@ -1,0 +1,26 @@
+{
+  "train": {
+    "num_samples": 46037.0,
+    "mean_length": 75.17763972456937,
+    "median_length": 65.0,
+    "std_length": 52.7607636098553,
+    "min_length": 0.0,
+    "max_length": 850.0
+  },
+  "val": {
+    "num_samples": 5783.0,
+    "mean_length": 74.42607643091822,
+    "median_length": 63.0,
+    "std_length": 53.80728411222879,
+    "min_length": 0.0,
+    "max_length": 599.0
+  },
+  "test": {
+    "num_samples": 5756.0,
+    "mean_length": 74.09173036831133,
+    "median_length": 64.0,
+    "std_length": 52.01255206115232,
+    "min_length": 0.0,
+    "max_length": 593.0
+  }
+}
