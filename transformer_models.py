@@ -37,7 +37,7 @@ def _get_env_float(name: str) -> Optional[float]:
     return float(value) if value else None
 
 
-def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
+def train_transformer(dataset: DatasetSplits) -> Dict[str, object]:
     model_name = "distilbert-base-uncased"
     tokenizer = DistilBertTokenizer.from_pretrained(model_name)
 
@@ -51,8 +51,12 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     val_dataset = _maybe_subsample(val_dataset, max_eval_samples)
     test_dataset = _maybe_subsample(test_dataset, max_eval_samples)
 
+    train_count = len(train_dataset)
+    val_count = len(val_dataset)
+    test_count = len(test_dataset)
+
     print(
-        f"Using {len(train_dataset)} train / {len(val_dataset)} val / {len(test_dataset)} test samples"
+        f"Using {train_count} train / {val_count} val / {test_count} test samples"
     )
 
     tokenized_train = train_dataset.map(lambda x: _tokenize_function(x, tokenizer), batched=True)
@@ -110,13 +114,28 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     val_predictions = trainer.predict(tokenized_val)
     val_preds = np.argmax(val_predictions.predictions, axis=1)
     print(classification_report(val_labels, val_preds, target_names=dataset.label_encoder.classes_))
+    val_report = classification_report(
+        val_labels, val_preds, target_names=dataset.label_encoder.classes_, output_dict=True
+    )
 
     print("\n📊 Transformer Test Results:\n")
     test_predictions = trainer.predict(tokenized_test)
     test_preds = np.argmax(test_predictions.predictions, axis=1)
     print(classification_report(test_labels, test_preds, target_names=dataset.label_encoder.classes_))
+    test_report = classification_report(
+        test_labels, test_preds, target_names=dataset.label_encoder.classes_, output_dict=True
+    )
 
     return {
-        "val_accuracy": accuracy_score(val_labels, val_preds),
-        "test_accuracy": accuracy_score(test_labels, test_preds),
+        "train_samples": train_count,
+        "val_samples": val_count,
+        "test_samples": test_count,
+        "validation": {
+            "accuracy": accuracy_score(val_labels, val_preds),
+            "report": val_report,
+        },
+        "test": {
+            "accuracy": accuracy_score(test_labels, test_preds),
+            "report": test_report,
+        },
     }

@@ -14,8 +14,8 @@ def main():
     print("\n🤖 Running Transformer (BERT) Model...")
     transformer_metrics = train_transformer(dataset)
     if transformer_metrics:
-        val_acc = transformer_metrics.get("val_accuracy")
-        test_acc = transformer_metrics.get("test_accuracy")
+        val_acc = transformer_metrics.get("validation", {}).get("accuracy")
+        test_acc = transformer_metrics.get("test", {}).get("accuracy")
         print(f"\n✅ Transformer accuracy — val: {val_acc:.3f}, test: {test_acc:.3f}")
 
 
