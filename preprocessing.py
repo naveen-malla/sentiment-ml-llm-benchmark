@@ -1,15 +1,32 @@
-# ✅ preprocessing.py (was twitter.py)
-import pandas as pd
 import re
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Dict
+
+import pandas as pd
 import nltk
 from sklearn.preprocessing import LabelEncoder
 
-nltk.download('stopwords')
+from prepare_data import prepare_dataset
+
+nltk.download('stopwords', quiet=True)
 from nltk.corpus import stopwords
 
 stop_words = set(stopwords.words('english'))
 
-def clean_text(text):
+
+@dataclass
+class DatasetSplits:
+    X_train: pd.Series
+    y_train: pd.Series
+    X_val: pd.Series
+    y_val: pd.Series
+    X_test: pd.Series
+    y_test: pd.Series
+    label_encoder: LabelEncoder
+
+
+def clean_text(text: str) -> str:
     text = re.sub(r"http\S+|www\S+|https\S+", '', text, flags=re.MULTILINE)
     text = re.sub(r'@\w+|\#', '', text)
     text = re.sub(r'[^\w\s]', '', text)
@@ -17,27 +34,49 @@ def clean_text(text):
     text = " ".join([word for word in text.split() if word not in stop_words])
     return text
 
-def load_and_preprocess_data(train_path, val_path):
-    column_names = ["tweet_id", "entity", "sentiment", "tweet"]
-    df_train = pd.read_csv(train_path, names=column_names, header=None)
-    df_val = pd.read_csv(val_path, names=column_names, header=None)
 
-    df_train = df_train.rename(columns={"tweet": "text", "sentiment": "label"})
-    df_val = df_val.rename(columns={"tweet": "text", "sentiment": "label"})
+def _ensure_processed_dataset(processed_dir: Path) -> None:
+    required_files = [processed_dir / name for name in ("train.csv", "val.csv", "test.csv")]
+    if all(path.exists() for path in required_files):
+        return
+    prepare_dataset(output_dir=processed_dir)
 
-    valid_labels = ["Positive", "Negative", "Neutral"]
-    df_train = df_train[df_train['label'].isin(valid_labels)].dropna(subset=["text", "label"])
-    df_val = df_val[df_val['label'].isin(valid_labels)].dropna(subset=["text", "label"])
 
-    df_train['clean_text'] = df_train['text'].apply(clean_text)
-    df_val['clean_text'] = df_val['text'].apply(clean_text)
+def _load_split(path: Path) -> pd.DataFrame:
+    df = pd.read_csv(path)
+    expected_columns = {'tweet_id', 'entity', 'sentiment', 'text'}
+    missing = expected_columns - set(df.columns)
+    if missing:
+        raise ValueError(f"Split file {path} missing columns: {sorted(missing)}")
+    df = df.rename(columns={'sentiment': 'label'})
+    df['text'] = df['text'].astype(str)
+    df['clean_text'] = df['text'].apply(clean_text)
+    return df[['tweet_id', 'entity', 'label', 'clean_text']]
+
+
+def load_and_preprocess_data(processed_dir: str = "data/processed") -> DatasetSplits:
+    processed_path = Path(processed_dir)
+    _ensure_processed_dataset(processed_path)
+
+    splits: Dict[str, pd.DataFrame] = {}
+    for name in ("train", "val", "test"):
+        splits[name] = _load_split(processed_path / f"{name}.csv")
 
     label_encoder = LabelEncoder()
-    df_train['label_encoded'] = label_encoder.fit_transform(df_train['label'])
-    df_val['label_encoded'] = label_encoder.transform(df_val['label'])
+    splits['train']['label_encoded'] = label_encoder.fit_transform(splits['train']['label'])
+    for split_name in ('val', 'test'):
+        splits[split_name]['label_encoded'] = label_encoder.transform(splits[split_name]['label'])
 
-    return df_train['clean_text'], df_val['clean_text'], df_train['label_encoded'], df_val['label_encoded'], label_encoder
+    return DatasetSplits(
+        X_train=splits['train']['clean_text'],
+        y_train=splits['train']['label_encoded'],
+        X_val=splits['val']['clean_text'],
+        y_val=splits['val']['label_encoded'],
+        X_test=splits['test']['clean_text'],
+        y_test=splits['test']['label_encoded'],
+        label_encoder=label_encoder,
+    )
+
 
 if __name__ == "__main__":
-    # Optional testing
-    load_and_preprocess_data("data/twitter_training.csv", "data/twitter_validation.csv")
+    load_and_preprocess_data()
