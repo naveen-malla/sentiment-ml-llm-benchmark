@@ -12,7 +12,11 @@ def main():
     train_and_evaluate_classical_models(dataset)
 
     print("\n🤖 Running Transformer (BERT) Model...")
-    train_transformer(dataset)
+    transformer_metrics = train_transformer(dataset)
+    if transformer_metrics:
+        val_acc = transformer_metrics.get("val_accuracy")
+        test_acc = transformer_metrics.get("test_accuracy")
+        print(f"\n✅ Transformer accuracy — val: {val_acc:.3f}, test: {test_acc:.3f}")
 
 
 if __name__ == "__main__":
