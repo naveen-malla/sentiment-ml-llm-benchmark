@@ -24,6 +24,16 @@ def _maybe_subsample(dataset: Dataset, max_samples: Optional[int], seed: int = 4
     return dataset.shuffle(seed=seed).select(range(max_samples))
 
 
+def _get_env_int(name: str) -> Optional[int]:
+    value = os.getenv(name)
+    return int(value) if value else None
+
+
+def _get_env_float(name: str) -> Optional[float]:
+    value = os.getenv(name)
+    return float(value) if value else None
+
+
 def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     model_name = "distilbert-base-uncased"
     tokenizer = DistilBertTokenizer.from_pretrained(model_name)
@@ -32,9 +42,11 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     val_dataset = Dataset.from_dict({"text": list(dataset.X_val), "label": list(dataset.y_val)})
     test_dataset = Dataset.from_dict({"text": list(dataset.X_test), "label": list(dataset.y_test)})
 
-    max_train_samples = os.getenv("MAX_TRAIN_SAMPLES")
-    max_train_samples = int(max_train_samples) if max_train_samples else None
+    max_train_samples = _get_env_int("MAX_TRAIN_SAMPLES")
+    max_eval_samples = _get_env_int("MAX_EVAL_SAMPLES")
     train_dataset = _maybe_subsample(train_dataset, max_train_samples)
+    val_dataset = _maybe_subsample(val_dataset, max_eval_samples)
+    test_dataset = _maybe_subsample(test_dataset, max_eval_samples)
 
     tokenized_train = train_dataset.map(lambda x: _tokenize_function(x, tokenizer), batched=True)
     tokenized_val = val_dataset.map(lambda x: _tokenize_function(x, tokenizer), batched=True)
@@ -42,6 +54,9 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
 
     for ds in (tokenized_train, tokenized_val, tokenized_test):
         ds.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
+
+    val_labels = np.array(tokenized_val['label'])
+    test_labels = np.array(tokenized_test['label'])
 
     model = DistilBertForSequenceClassification.from_pretrained(
         model_name,
@@ -54,14 +69,19 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
         acc = accuracy_score(labels, preds)
         return {"accuracy": acc}
 
+    num_train_epochs = _get_env_float("NUM_TRAIN_EPOCHS") or 2.0
+    per_device_train_batch_size = _get_env_int("TRAIN_BATCH_SIZE") or 8
+    per_device_eval_batch_size = _get_env_int("EVAL_BATCH_SIZE") or 8
+    learning_rate = _get_env_float("LEARNING_RATE") or 5e-5
+
     training_args = TrainingArguments(
         output_dir="./results",
         eval_strategy="epoch",
         save_strategy="no",
-        num_train_epochs=2,
-        per_device_train_batch_size=8,
-        per_device_eval_batch_size=8,
-        learning_rate=5e-5,
+        num_train_epochs=num_train_epochs,
+        per_device_train_batch_size=per_device_train_batch_size,
+        per_device_eval_batch_size=per_device_eval_batch_size,
+        learning_rate=learning_rate,
         weight_decay=0.01,
         logging_steps=50,
         warmup_ratio=0.06,
@@ -82,14 +102,14 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, float]:
     print("\n📊 Transformer Validation Results:\n")
     val_predictions = trainer.predict(tokenized_val)
     val_preds = np.argmax(val_predictions.predictions, axis=1)
-    print(classification_report(dataset.y_val, val_preds, target_names=dataset.label_encoder.classes_))
+    print(classification_report(val_labels, val_preds, target_names=dataset.label_encoder.classes_))
 
     print("\n📊 Transformer Test Results:\n")
     test_predictions = trainer.predict(tokenized_test)
     test_preds = np.argmax(test_predictions.predictions, axis=1)
-    print(classification_report(dataset.y_test, test_preds, target_names=dataset.label_encoder.classes_))
+    print(classification_report(test_labels, test_preds, target_names=dataset.label_encoder.classes_))
 
     return {
-        "val_accuracy": accuracy_score(dataset.y_val, val_preds),
-        "test_accuracy": accuracy_score(dataset.y_test, test_preds),
+        "val_accuracy": accuracy_score(val_labels, val_preds),
+        "test_accuracy": accuracy_score(test_labels, test_preds),
     }
