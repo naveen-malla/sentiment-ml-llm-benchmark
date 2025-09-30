@@ -26,7 +26,7 @@ def train_and_evaluate_classical_models(dataset: DatasetSplits) -> Dict[str, Dic
         "Linear SVM": LinearSVC(),
     }
 
-    results: Dict[str, Dict[str, float]] = {}
+    results: Dict[str, Dict[str, object]] = {}
     for name, model in models.items():
         print(f"\nTraining {name}...")
         clf = Pipeline([
@@ -36,10 +36,11 @@ def train_and_evaluate_classical_models(dataset: DatasetSplits) -> Dict[str, Dic
         clf.fit(dataset.X_train, dataset.y_train)
 
         split_metrics: Dict[str, Dict[str, object]] = {}
-        for split_name, (X, y) in {
-            "Validation": (dataset.X_val, dataset.y_val),
-            "Test": (dataset.X_test, dataset.y_test),
-        }.items():
+        for split_name, (X, y) in [
+            ("Training", (dataset.X_train, dataset.y_train)),
+            ("Validation", (dataset.X_val, dataset.y_val)),
+            ("Test", (dataset.X_test, dataset.y_test)),
+        ]:
             metrics = _evaluate_split(clf, X, y, dataset.label_encoder.classes_, split_name)
             split_metrics[split_name.lower()] = metrics
 

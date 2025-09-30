@@ -66,6 +66,7 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, object]:
     for ds in (tokenized_train, tokenized_val, tokenized_test):
         ds.set_format(type='torch', columns=['input_ids', 'attention_mask', 'label'])
 
+    train_labels = np.array(tokenized_train['label'])
     val_labels = np.array(tokenized_val['label'])
     test_labels = np.array(tokenized_test['label'])
 
@@ -110,6 +111,14 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, object]:
 
     trainer.train()
 
+    print("\n📊 Transformer Training Results:\n")
+    train_predictions = trainer.predict(tokenized_train)
+    train_preds = np.argmax(train_predictions.predictions, axis=1)
+    print(classification_report(train_labels, train_preds, target_names=dataset.label_encoder.classes_))
+    train_report = classification_report(
+        train_labels, train_preds, target_names=dataset.label_encoder.classes_, output_dict=True
+    )
+
     print("\n📊 Transformer Validation Results:\n")
     val_predictions = trainer.predict(tokenized_val)
     val_preds = np.argmax(val_predictions.predictions, axis=1)
@@ -130,6 +139,10 @@ def train_transformer(dataset: DatasetSplits) -> Dict[str, object]:
         "train_samples": train_count,
         "val_samples": val_count,
         "test_samples": test_count,
+        "training": {
+            "accuracy": accuracy_score(train_labels, train_preds),
+            "report": train_report,
+        },
         "validation": {
             "accuracy": accuracy_score(val_labels, val_preds),
             "report": val_report,

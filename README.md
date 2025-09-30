@@ -32,28 +32,30 @@
 
 ## 5. Results Summary
 ### Classical Models (full dataset)
-| Model | Validation Accuracy | Validation Macro F1 | Test Accuracy | Test Macro F1 |
-| --- | --- | --- | --- | --- |
-| Naive Bayes | 0.623 | 0.596 | 0.594 | 0.574 |
-| Logistic Regression | 0.632 | 0.619 | 0.611 | 0.606 |
-| Linear SVM | 0.606 | 0.594 | 0.577 | 0.570 |
+| Model | Train Accuracy | Train Macro F1 | Validation Accuracy | Validation Macro F1 | Test Accuracy | Test Macro F1 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Naive Bayes | 0.858 | 0.855 | 0.623 | 0.596 | 0.594 | 0.574 |
+| Logistic Regression | 0.907 | 0.906 | 0.632 | 0.619 | 0.611 | 0.606 |
+| Linear SVM | 0.959 | 0.960 | 0.606 | 0.594 | 0.577 | 0.570 |
 
 ### DistilBERT (subsampled run)
 - Train samples: 3 000 (subset of training split)
 - Validation/Test samples: 2 000 each (subset for quick evaluation)
-- Validation accuracy: 0.643 (macro F1 0.620)
-- Test accuracy: 0.615 (macro F1 0.599)
+- Training accuracy: 0.722 (macro F1 0.702)
+- Validation accuracy: 0.641 (macro F1 0.611)
+- Test accuracy: 0.608 (macro F1 0.585)
 
 > Note: Running DistilBERT on the full 46 K examples would take ~7–8 hours for 2 epochs on the M4 Air CPU but should tighten the gap further.
 
 ## 6. Visual Insights (see `reports/figures/`)
 - `label_distribution.png`: class balance is relatively even, slightly skewed toward Negative.
 - `text_length_distribution.png`: train/val/test share similar length profiles, confirming split consistency.
-- `model_*` charts: DistilBERT edges classical models on accuracy and macro scores while classical baselines remain competitive and much faster.
+- `model_*` charts: compare training/validation/test accuracy and macro metrics for every model—classical baselines nearly memorize the training data, while DistilBERT stays closer to validation/test scores.
 
 ## 7. Key Takeaways
 - Cleaning/reshuffling eliminated data leakage, reducing inflated classical scores but yielding realistic baselines.
 - TF–IDF + Logistic Regression remains a strong lightweight baseline (0.61 test accuracy) for rapid experimentation.
+- Training metrics reveal classical models nearly memorize the dataset (≈0.95 training accuracy) while transformers stay closer to held-out scores—use validation/test numbers for real performance.
 - Even with a small subsample DistilBERT surpasses classical models, confirming transformer benefits on nuanced sentiment labels.
 - Runtime constraints on CPU require subsampling or patience; consider GPU or gradient-accumulation tweaks for full-scale runs.
 
@@ -69,4 +71,3 @@
 - Run experiments: `python3 main.py` (set env vars for transformer size/epochs)
 - Produce report: `python3 analysis/generate_report.py`
 - Inspect outputs in `reports/` for latest metrics & visuals.
-

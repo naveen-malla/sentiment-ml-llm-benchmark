@@ -94,14 +94,18 @@ def _model_metrics_frame(classical_results: Dict[str, Dict[str, Dict]], transfor
                 }
             )
     if transformer_results:
-        for split_name in ("validation", "test"):
+        for split_name, label in [
+            ("training", "Training"),
+            ("validation", "Validation"),
+            ("test", "Test"),
+        ]:
             metrics = transformer_results.get(split_name, {})
             report = metrics.get("report", {})
             macro = report.get("macro avg", {})
             rows.append(
                 {
                     "model": "DistilBERT",
-                    "split": "Validation" if split_name == "validation" else "Test",
+                    "split": label,
                     "accuracy": metrics.get("accuracy"),
                     "macro_precision": macro.get("precision"),
                     "macro_recall": macro.get("recall"),
